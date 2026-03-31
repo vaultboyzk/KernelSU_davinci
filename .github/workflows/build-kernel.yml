@@ -245,67 +245,22 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
         max-size: 2G
 
-   - name: Build kernel
-  run: |
-    cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-
-    # 🔥 Critical: Add custom clang to PATH first
-    export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-
-    # Optional: Verify tools are accessible
-    echo "=== Verifying LLVM tools ==="
-    for tool in clang ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
-        if command -v $tool &> /dev/null; then
-            echo "✓ $tool: $(command -v $tool)"
-        else
-            echo "✗ $tool NOT FOUND!"
-            exit 1
+    - name: Build kernel
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
+        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+        export KBUILD_BUILD_HOST=Github-Action
+        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
+        if [ ! -z ${{ env.KSU_EXPECTED_SIZE }} ] && [ ! -z ${{ env.KSU_EXPECTED_HASH }} ]; then
+          export KSU_EXPECTED_SIZE=${{ env.KSU_EXPECTED_SIZE }}
+          export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
         fi
-    done
-
-    export KBUILD_BUILD_HOST=Github-Action
-    export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
-
-    # Pass KSU vars if set
-    if [ -n "${{ env.KSU_EXPECTED_SIZE }}" ] && [ -n "${{ env.KSU_EXPECTED_HASH }}" ]; then
-      export KSU_EXPECTED_SIZE=${{ env.KSU_EXPECTED_SIZE }}
-      export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
-    fi
-
-    # 🔧 Pass CUSTOM_CMDS and EXTRA_CMDS to make
-    # Your parser already exports them to $GITHUB_ENV, so they're available as ${{ env.* }}
-    
-    # Initial defconfig step
-    make -j$(nproc --all) \
-        CC=clang \
-        O=out \
-        ARCH=${{ env.ARCH }} \
-        ${{ env.CUSTOM_CMDS }} \
-        ${{ env.EXTRA_CMDS }} \
-        ${{ env.GCC_64 }} \
-        ${{ env.GCC_32 }} \
-        ${{ env.KERNEL_CONFIG }}
-
-    # Actual build
-    if [ "${{ env.ENABLE_CCACHE }}" = "true" ]; then
-        make -j$(nproc --all) \
-            CC="ccache clang" \
-            O=out \
-            ARCH=${{ env.ARCH }} \
-            ${{ env.CUSTOM_CMDS }} \
-            ${{ env.EXTRA_CMDS }} \
-            ${{ env.GCC_64 }} \
-            ${{ env.GCC_32 }}
-    else
-        make -j$(nproc --all) \
-            CC=clang \
-            O=out \
-            ARCH=${{ env.ARCH }} \
-            ${{ env.CUSTOM_CMDS }} \
-            ${{ env.EXTRA_CMDS }} \
-            ${{ env.GCC_64 }} \
-            ${{ env.GCC_32 }}
-    fi
+        make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
+        if [ ${{ env.ENABLE_CCACHE }} = true ]; then
+            make -j$(nproc --all) CC="ccache clang" O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
+        else
+            make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
+        fi
 
     - name: Check a kernel output files
       run: |
