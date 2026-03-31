@@ -94,22 +94,11 @@ jobs:
     - name: Download Clang-aosp
       if: env.USE_CUSTOM_CLANG != 'true'
       run: |
-        cd "$GITHUB_WORKSPACE/kernel_workspace"
-        rm -rf clang-aosp
-        
-        echo "Downloading Clang from branch: ${{ env.CLANG_BRANCH }}"
-        
-        # Upewnij się, że adres URL jest wpisany w całości w jednej linii
-        git clone --depth=1 --single-branch -b "${{ env.CLANG_BRANCH }}" https://googlesource.com clang-aosp
-        
-        if [ -f "clang-aosp/bin/clang" ]; then
-          echo "Success: Clang ${{ env.CLANG_VERSION }} downloaded."
-          chmod -R +x clang-aosp/bin/
-        else
-          echo "Error: Clang binaries not found in clang-aosp/bin/"
-          ls -la clang-aosp/ || true
-          exit 1
-        fi
+        cd $GITHUB_WORKSPACE/kernel_workspace
+        mkdir clang-aosp
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/${{ env.CLANG_BRANCH }}/clang-${{ env.CLANG_VERSION }}.tar.gz
+        tar -C clang-aosp/ -zxvf clang-${{ env.CLANG_VERSION }}.tar.gz
+
     
     - name: Download Custom-Clang
       if: env.USE_CUSTOM_CLANG == 'true'
