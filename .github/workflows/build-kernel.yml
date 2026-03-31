@@ -95,19 +95,18 @@ jobs:
       if: env.USE_CUSTOM_CLANG != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        mkdir clang-aosp
+        mkdir -p clang-aosp
         echo "Downloading Clang ${{ env.CLANG_VERSION }} from branch ${{ env.CLANG_BRANCH }}..."
         
-        # Use git clone instead of wget for the archive
-        git clone --depth=1 -b ${{ env.CLANG_BRANCH }} https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-temp
+        # 
+        git clone --depth=1 -b ${{ env.CLANG_BRANCH }} https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-aosp
         
-        if [ -d clang-temp/clang-${{ env.CLANG_VERSION }} ]; then
-          cp -r clang-temp/clang-${{ env.CLANG_VERSION }}/* clang-aosp/
-          rm -rf clang-temp
-          echo "Clang extracted successfully"
+        # 
+        if [ -f clang-aosp/bin/clang ]; then
+          echo "Clang version ${{ env.CLANG_VERSION }} downloaded successfully"
         else
-          echo "Error: clang-${{ env.CLANG_VERSION }} not found in repository"
-          ls -la clang-temp/ || true
+          echo "Error: Clang binaries not found in the cloned repository"
+          ls -la clang-aosp/
           exit 1
         fi
 
