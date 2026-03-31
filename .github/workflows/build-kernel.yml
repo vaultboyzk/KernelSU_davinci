@@ -245,23 +245,64 @@ jobs:
         key: build-kernel-${{ env.DEVICE }}${{ env.LOCALVERSION }}${{ env.UPLOADNAME }}
         max-size: 2G
 
-    - name: Build kernel
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
-        export KBUILD_BUILD_HOST=Github-Action
-        export KBUILD_BUILD_USER=$(echo ${{ github.actor }} | tr A-Z a-z)
-        if [ ! -z ${{ env.KSU_EXPECTED_SIZE }} ] && [ ! -z ${{ env.KSU_EXPECTED_HASH }} ]; then
-          export KSU_EXPECTED_SIZE=${{ env.KSU_EXPECTED_SIZE }}
-          export KSU_EXPECTED_HASH=${{ env.KSU_EXPECTED_HASH }}
-        fi
-        make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }} ${{ env.KERNEL_CONFIG }}
-        if [ ${{ env.ENABLE_CCACHE }} = true ]; then
-            make -j$(nproc --all) CC="ccache clang" O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
-        else
-            make -j$(nproc --all) CC=clang O=out ARCH=${{ env.ARCH }} ${{ env.CUSTOM_CMDS }} ${{ env.EXTRA_CMDS }} ${{ env.GCC_64 }} ${{ env.GCC_32 }}
-        fi
+     - name: Build kernel
+  run: |
+    cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
 
+    # 🔥 Ensure custom clang is in PATH first
+    export PATH="$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH"
+
+    # Export build metadata
+    export KBUILD_BUILD_HOST=Github-Action
+    export KBUILD_BUILD_USER=$(echo "${{ github.actor }}" | tr 'A-Z' 'a-z')
+
+    # Pass KernelSU vars if defined
+    if [ -n "${{ env.KSU_EXPECTED_SIZE }}" ] && [ -n "${{ env.KSU_EXPECTED_HASH }}" ]; then
+      export KSU_EXPECTED_SIZE="${{ env.KSU_EXPECTED_SIZE }}"
+      export KSU_EXPECTED_HASH="${{ env.KSU_EXPECTED_HASH }}"
+    fi
+
+    # 🔧 Debug: Show what we're passing to make
+    echo "=== Build Configuration ==="
+    echo "CUSTOM_CMDS: ${{ env.CUSTOM_CMDS }}"
+    echo "EXTRA_CMDS: ${{ env.EXTRA_CMDS }}"
+    echo "GCC_64: ${{ env.GCC_64 }}"
+    echo "GCC_32: ${{ env.GCC_32 }}"
+    echo "PATH (clang): $(which clang || echo 'NOT FOUND')"
+
+    # 🎯 Step 1: Generate defconfig (only once)
+    make -j"$(nproc --all)" \
+        CC=clang \
+        O=out \
+        ARCH="${{ env.ARCH }}" \
+        ${{ env.CUSTOM_CMDS }} \
+        ${{ env.EXTRA_CMDS }} \
+        ${{ env.GCC_64 }} \
+        ${{ env.GCC_32 }} \
+        "${{ env.KERNEL_CONFIG }}"
+
+    # 🎯 Step 2: Build the kernel
+    if [ "${{ env.ENABLE_CCACHE }}" = "true" ]; then
+        echo "🔄 Building with ccache..."
+        make -j"$(nproc --all)" \
+            CC="ccache clang" \
+            O=out \
+            ARCH="${{ env.ARCH }}" \
+            ${{ env.CUSTOM_CMDS }} \
+            ${{ env.EXTRA_CMDS }} \
+            ${{ env.GCC_64 }} \
+            ${{ env.GCC_32 }}
+    else
+        echo "🔄 Building without ccache..."
+        make -j"$(nproc --all)" \
+            CC=clang \
+            O=out \
+            ARCH="${{ env.ARCH }}" \
+            ${{ env.CUSTOM_CMDS }} \
+            ${{ env.EXTRA_CMDS }} \
+            ${{ env.GCC_64 }} \
+            ${{ env.GCC_32 }}
+    fi
     - name: Check a kernel output files
       run: |
        cd $GITHUB_WORKSPACE/kernel_workspace
