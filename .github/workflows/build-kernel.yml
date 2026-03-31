@@ -91,6 +91,25 @@ jobs:
         sudo apt-get install git ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
 
+    - name: Download Clang-aosp
+      if: env.USE_CUSTOM_CLANG != 'true'
+      run: |
+        cd "$GITHUB_WORKSPACE/kernel_workspace"
+        rm -rf clang-aosp
+        
+        echo "Downloading Clang from branch: ${{ env.CLANG_BRANCH }}"
+        
+        # Upewnij się, że adres URL jest wpisany w całości w jednej linii
+        git clone --depth=1 --single-branch -b "${{ env.CLANG_BRANCH }}" https://googlesource.com clang-aosp
+        
+        if [ -f "clang-aosp/bin/clang" ]; then
+          echo "Success: Clang ${{ env.CLANG_VERSION }} downloaded."
+          chmod -R +x clang-aosp/bin/
+        else
+          echo "Error: Clang binaries not found in clang-aosp/bin/"
+          ls -la clang-aosp/ || true
+          exit 1
+        fi
     
     - name: Download Custom-Clang
       if: env.USE_CUSTOM_CLANG == 'true'
