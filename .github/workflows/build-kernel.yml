@@ -92,27 +92,19 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
 
     - name: Download Clang-aosp
-      if: env.USE_CUSTOM_CLANG != 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
-        # Czyścimy stare śmieci i tworzymy czysty folder
         rm -rf clang-aosp
+        echo "Downloading Clang from official AOSP mirror..."
         
-        echo "Downloading Clang ${{ env.CLANG_VERSION }}..."
-        
-        # Klonujemy branch bezpośrednio do folderu clang-aosp
-        # Dodajemy --single-branch dla szybkości
+        # 
         git clone --depth=1 --single-branch -b mirror-goog-llvm-r563880-release https://googlesource.com clang-aosp
         
-        # Kluczowa zmiana: Sprawdzamy binarkę bezpośrednio w folderze bin/
         if [ -f "clang-aosp/bin/clang" ]; then
-          echo "Success: Clang r563880c found and ready."
+          echo "Clang downloaded successfully."
           chmod -R +x clang-aosp/bin/
-          ./clang-aosp/bin/clang --version
         else
-          echo "Error: Clang binaries not found!"
-          echo "Current directory content:"
-          ls -F clang-aosp/
+          echo "Error: Clang not found!"
           exit 1
         fi
 
